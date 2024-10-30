@@ -560,6 +560,22 @@ pub fn ContextType(
         }
 
         fn on_submit(implementation: *ContextImplementation, packet: *Packet) void {
+            // Packet is caller-allocated to enable elastic intrusive-link-list-based memory
+            // management. However, some of Packet's fields are essentially private. Initialize
+            // them here to avoid threading default fields through FFI boundary.
+            packet.* = .{
+                .next = null,
+                .user_data = packet.user_data,
+                .operation = packet.operation,
+                .status = .ok,
+                .data_size = packet.data_size,
+                .data = packet.data,
+                .batch_next = null,
+                .batch_tail = null,
+                .batch_size = 0,
+                .batch_allowed = false,
+                .reserved = [_]u8{0} ** 7,
+            };
             const self = get_context(implementation);
 
             const already_shutdown = self.shutdown.load(.acquire);
